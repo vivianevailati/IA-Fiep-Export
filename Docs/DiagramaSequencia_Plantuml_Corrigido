@@ -1,0 +1,123 @@
+@startuml
+title Diagrama de Sequência - Assistente de IA para Exportação (Sistema Fiep)
+
+autonumber
+hide footbox
+
+actor "Usuário" as Usuario
+participant "Assistente de IA" as Assistente
+participant "Interpretador da Consulta" as Interpretador
+participant "Gestor da Operação\nde Exportação" as Operacao
+participant "Conhecimento do Domínio" as Dominio
+participant "Mecanismo de Aplicabilidade" as Aplicabilidade
+database "Base de Regras e Requisitos" as Base
+participant "Verificador de Restrições" as Restricoes
+participant "Consulta de Fontes\nNormativas" as Fontes
+participant "Gerador de Resposta\nOrientativa" as Gerador
+
+Usuario -> Assistente: enviarConsulta(consulta)\n("Quero exportar peças automotivas para a Argentina.\nQuais documentos preciso?")
+activate Assistente
+
+== Interpretação e estruturação da operação ==
+
+Assistente -> Interpretador: interpretarConsulta(consulta)
+activate Interpretador
+Interpretador -> Interpretador: identificarIntencao()\n(consultar documentos necessários)
+Interpretador -> Interpretador: extrairDadosOperacao()\n(produto, destino, origem, NCM,\nquantidade, finalidade)
+Interpretador --> Assistente: intenção e dados identificados
+deactivate Interpretador
+
+Assistente -> Operacao: estruturarOperacao(dados)
+activate Operacao
+Operacao -> Dominio: relacionarContexto(produto, origem,\ndestino, características)
+activate Dominio
+Dominio --> Operacao: contexto da operação
+deactivate Dominio
+Operacao -> Operacao: avaliarCompletude()
+Operacao --> Assistente: contexto e dados essenciais faltantes
+deactivate Operacao
+
+== Coleta dos dados faltantes (RF03) ==
+
+loop dados essenciais ainda faltantes
+    Assistente --> Usuario: solicitarDadosFaltantes(lista)\n(pergunta apenas o que falta)
+    Usuario -> Assistente: informarDados(dados)
+    Assistente -> Interpretador: interpretarConsulta(dados)
+    activate Interpretador
+    Interpretador --> Assistente: dados complementares identificados
+    deactivate Interpretador
+    Assistente -> Operacao: atualizarOperacao(dados)
+    activate Operacao
+    Operacao -> Operacao: avaliarCompletude()
+    Operacao --> Assistente: contexto atualizado e dados faltantes
+    deactivate Operacao
+end
+
+== Aplicabilidade das regras ==
+
+Assistente -> Aplicabilidade: determinarAplicabilidade(contexto)
+activate Aplicabilidade
+Aplicabilidade -> Base: buscarRegrasECandidatos(contexto)
+activate Base
+Base --> Aplicabilidade: regras e requisitos candidatos
+deactivate Base
+
+Aplicabilidade -> Dominio: verificarCorrespondencia(candidatos, contexto)
+activate Dominio
+Dominio --> Aplicabilidade: regras e requisitos aplicáveis
+deactivate Dominio
+
+alt Nenhuma regra aplicável encontrada
+    Aplicabilidade --> Assistente: resultado vazio
+    deactivate Aplicabilidade
+    Assistente --> Usuario: indicarIncerteza()\n(sem base para orientar; pede mais detalhes\ne recomenda validação especializada)
+else Regras aplicáveis encontradas
+    Aplicabilidade -> Restricoes: verificarRestricoes(contexto, regras)
+    activate Restricoes
+    Restricoes -> Dominio: consultarRestricoes(produto, destino, operação)
+    activate Dominio
+    Dominio --> Restricoes: restrições identificadas
+    deactivate Dominio
+    Restricoes --> Aplicabilidade: resultado da verificação
+    deactivate Restricoes
+
+    Aplicabilidade --> Assistente: requisitos, documentos e restrições
+    deactivate Aplicabilidade
+
+    == Fundamentação normativa (RF10) ==
+
+    Assistente -> Fontes: obterFontesNormativas(regras)
+    activate Fontes
+    Fontes -> Base: recuperarReferencias(regras)
+    activate Base
+    Base --> Fontes: fontes e dados de vigência
+    deactivate Base
+    Fontes -> Fontes: verificarVigencia()
+    Fontes --> Assistente: referências normativas e situação de vigência
+    deactivate Fontes
+
+    == Resposta orientativa (RF11, RF13) ==
+
+    Assistente -> Gerador: gerarResposta(requisitos, documentos,\nrestrições, fontes, vigência)
+    activate Gerador
+
+    alt Existe restrição ou condição especial
+        Gerador -> Gerador: destacarLimitacoes()\n(licenças, autorizações ou análises necessárias)
+    else Não foi identificada restrição impeditiva
+        Gerador -> Gerador: organizarRequisitos()\n(documentos e requisitos aplicáveis)
+    end
+
+    opt Fonte desatualizada ou ausente
+        Gerador -> Gerador: sinalizarIncerteza()\n(recomenda conferir a fonte oficial)
+    end
+
+    Gerador -> Gerador: incluirProximosPassos()\ne aviso de que não é decisão jurídica
+    Gerador --> Assistente: resposta orientativa
+    deactivate Gerador
+
+    Assistente --> Usuario: apresentarResposta()\n(documentos, requisitos, restrições,\nfontes, pendências e próximos passos)
+end
+
+deactivate Assistente
+
+@enduml
